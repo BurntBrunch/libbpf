@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <linux/btf.h>
 #include <linux/types.h>
+#include <linux/version.h>
 
 #include "libbpf_common.h"
 
@@ -229,6 +230,11 @@ LIBBPF_API int btf__add_const(struct btf *btf, int ref_type_id);
 LIBBPF_API int btf__add_restrict(struct btf *btf, int ref_type_id);
 LIBBPF_API int btf__add_type_tag(struct btf *btf, const char *value, int ref_type_id);
 
+#if defined(__cplusplus) && __cplusplus >= 201103L && LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
+enum btf_func_linkage: int; /* C++ compilers need a size */
+#else
+enum btf_func_linkage; /* defined in up-to-date linux/bpf.h */
+#endif
 /* func and func_proto construction APIs */
 LIBBPF_API int btf__add_func(struct btf *btf, const char *name,
 			     enum btf_func_linkage linkage, int proto_type_id);
@@ -396,6 +402,18 @@ btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 /* The kernel header switched to enums, so these two were never #defined */
 #define BTF_KIND_DECL_TAG	17	/* Decl Tag */
 #define BTF_KIND_TYPE_TAG	18	/* Type Tag */
+
+#ifndef BTF_MEMBER_BITFIELD_SIZE
+#define BTF_MEMBER_BITFIELD_SIZE(val)	((val) >> 24)
+#endif
+
+#ifndef BTF_MEMBER_BIT_OFFSET
+#define BTF_MEMBER_BIT_OFFSET(val)	((val) & 0xffffff)
+#endif
+
+#ifndef BTF_INFO_KFLAG
+#define BTF_INFO_KFLAG(info)	((info) >> 31)
+#endif
 
 static inline __u16 btf_kind(const struct btf_type *t)
 {
@@ -576,6 +594,12 @@ static inline __u32 btf_member_bitfield_size(const struct btf_type *t,
 	return kflag ? BTF_MEMBER_BITFIELD_SIZE(m->offset) : 0;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,0,0)
+struct btf_param {
+	__u32	name_off;
+	__u32	type;
+};
+#endif
 static inline struct btf_param *btf_params(const struct btf_type *t)
 {
 	return (struct btf_param *)(t + 1);
